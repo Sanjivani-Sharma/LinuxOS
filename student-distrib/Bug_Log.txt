@@ -1,0 +1,92 @@
+3/21:
+    Video memory appeared with rainbow screen after enabling paging 
+        Fix: pointed paging entry for video to the right address B8 + j
+    Paging Disabled Error
+        Fix: included paging.h file
+    Infinite Bootloop for paging
+        Fix: fixed video memory address indexing
+    Initialized infinite pages
+        Fix: stopped flushing after loading cr3
+
+3/20:
+    RTC printing only once
+        Fix: inverted EOI bits to mask correctly
+    RTC did not print anything (General protection exception)
+        Fix: set master and slave masks at end of init_RTC
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+3/28:
+    Text files would print perfectly fine but hello executable would only print first 6 characters
+        Fix: Cause was due to '\0' characters following the 6 characters which C considered the end of the string and stopped copying and printing at that point
+3/27:
+    Page Fault error while trying to print directory
+        Fix: Cause was due to faulty pointer/integer definitions that were all replaced to integers
+3/24:
+    Bug with keyboard where if backspace was clicked too many times terminal buffer would be empty even if keyboard buffer wasnt after reading
+        Fix: Backspace was limited to only occur if x > 0 or if buffer occupies multiple lines and the current one is not the top.
+    Bug with terminal where scrolling only scrolled half a line upwards each times
+        Fix: the fault was because the bits were shifted to the right before scrolling instead of after scrolling. This caused the scrolling to only affect one buffer
+    Bug with terminal where page fault error would occur after backspacing to top left characters
+        Fix: limited backspace to stop at x = 0
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+4/11:
+    Bug where execute would cause a bootloop on iret (2 Fixes):
+        Fix part 1: realized that the shell c file was modified too much to the point where eip would jump to random sections of the code
+            violating C calling convention and causing triple fault on return
+        Fix part 2: realized that tss's esp0 was set incorrectly leading to the esp being wrong after iret causing a triple fault
+    391OS> printed infinitely without the need for user intervention:
+        Fix: fixed by adding a flag to the terminal_read function that only reads when enter is clicked (causes shell script to stall)
+4/12:
+    Bug where execute causes page fault when testprint is called:
+        This was because when paging for the testprint process was done, it resets the entire stack to 0 which eliminates the return addresses
+        pushed for return statements. 
+        Fix: realized this was because tss was faulty and constant so altered the formula to change with process number
+    Page fault when halting testprint
+        Fix: realized this was because halt was called even after it was already halted because the process number still remained. Set the process
+        number to the parent process number at the end of halt. 
+    Stress test bug where testprint would pagefault after being called 6 times
+        Fix: this was because the process_count was not decremented at halt leading to it forever increasing and maxing out at 6. This leads to 
+        the execute function returning prematurely and causing a page fault
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+4/18:
+    Bug where ls would fail when immediately executed after previous ls
+        Fix: this was because when the verylarge... file was read by directory it would do so without \0 at end causing bug
+    Sys error test would insert files into file descriptor array when close not open test called
+        Fix: this was because open added to file descriptor array before checking if file is valid
+    Alt would cause spaces
+        Fix: limited displayable characters to only non \0 opens
+4/17
+    Vid map lays out fish in a wierd way
+        Fix: realized this was because the characters in fish were printed in every other one order. This was because in filesystem,
+        the variable that kept track of how far the file has been read so far was global. Due to this it would be incremented twice by
+        the two frames leading to faulty display
+    Vid map fails to animate fish
+        Fix: dentry was global so it would read from the same file leading to on and off bits being the same hence not animating.
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+4/27
+    terminal switching lead to page faults when switching screen
+        Fix: Tested and found out that this would only occur after attempting to exit the base shell in parent terminal. This was fixed 
+        by detecting bases for new terminals by counting the number of processes there are running. This allowed for the terminal to 
+        not attempt quitting out of a shell that does not belong to it.
+4/28
+    Initial implementation of scheduling caused tripple fault (boot loop) when switching terminals
+        Cause: After testing, it was realized that this was due to the general life cycle of the scheduler and a process. When the scheduler
+        tries running a process that it has never interacted before (has not saved into pcb), it tries restoring the esp and ebp to the default
+        C integers of 0 which cause kernel panic and bootloop
+        Solution: Some flags were created to check if the respective terminal's base shell was executed yet or not. If it wasn't then the program
+        does not restore the esp and ebp instead it executes shell so that the esp and ebp for the new terminal are automatically provided. This
+        is now considered as initialized as now the scheduler can save the esp and ebp into the pcb for future use
+    Terminal 2 would read from terminal 1 on enter occasionally and vice versa leading to this command does not exist
+        Fix: this was fixed by changing the global read flag into an array for each terminal to indicate if the program should perform a read
+        operation while also specifying which terminal to read from. 
+    Terminals would read from and write to wrong pages after user input
+        Fix: this was fixed by temporarily changing the mapping of the virutal video memory address to the hardware video memory address and then
+        restoring the page table after the read/write operation was complete
+4/30
+    "391OS>" would disappear after fish was run
+        Cause: this was because it was written to a different video page buffer instead of the current one.
+        Fix: this was fixed by mapping two virtual addresses to the physical video memory address: they virtual video memory address and the 
+        virtual vidmap address
+
+
